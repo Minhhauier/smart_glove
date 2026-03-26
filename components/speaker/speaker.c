@@ -390,12 +390,13 @@ void speak_vietnamese(const char *text)
 void speaker_task(void *pvParameters)
 {
     //speak_vietnamese("Xin chào! Đây là thử nghiệm Text-to-Speech trên ESP32.");
+    speak_vietnamese("Xin chào! Tôi là đệ tử của Minh");
 
     // Tắt task sau khi phát xong.
     bool spoke[10]= {false};
     while (1)
     {
-        if (accel.x > 0.7f && accel.y > -0.5f && accel.y < 0.5f) {
+        if (data[0].x > 0.7f && data[1].x < 0.5f && data[2].x < 0.5f) {
            char *msg = read_text_from_nvs(my_nvs_handle, "activity_1");
             if (msg && spoke[0] == false) {
                 printf("%s\n", msg);
@@ -404,7 +405,7 @@ void speaker_task(void *pvParameters)
                 free(msg);
             }
            // speak_vietnamese(read_text_from_nvs(my_nvs_handle, "mpu_status_1"));
-        } else if (accel.x < -0.7f && accel.y > -0.5f && accel.y < 0.5f) {
+        } else if (data[1].x > 0.7f && data[0].x < 0.5f && data[2].x < 0.5f) {
             char *msg = read_text_from_nvs(my_nvs_handle, "activity_2");
             if (msg && spoke[1] == false) {
                 printf("%s\n", msg);
@@ -413,7 +414,7 @@ void speaker_task(void *pvParameters)
                 free(msg);
             }
         }
-        else if (accel.y > 0.7f && accel.x > -0.5f && accel.x < 0.5f) {
+        else if (data[2].x > 0.7f && data[0].x < 0.5f && data[1].x < 0.5f){
             char *msg = read_text_from_nvs(my_nvs_handle, "activity_3");
             if (msg && spoke[2] == false) {
                 printf("%s\n", msg);
@@ -421,7 +422,7 @@ void speaker_task(void *pvParameters)
                 spoke[2] = true;
                 free(msg);
             }
-        } else if (accel.y < -0.7f && accel.x > -0.5f && accel.x < 0.5f) {
+        } else if (data[0].x > 0.7f && data[1].x > 0.7f && data[2].x < 0.5f) {
             char *msg = read_text_from_nvs(my_nvs_handle, "activity_4");
             if (msg && spoke[3] == false) {
                 printf("%s\n", msg);

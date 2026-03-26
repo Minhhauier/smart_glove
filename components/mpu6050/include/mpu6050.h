@@ -109,15 +109,16 @@ typedef struct {
 
 /* ─── API ────────────────────────────────────────────────────── */
 extern mpu6050_data_t accel;
+extern mpu6050_data_t data[3];
 /**
  * @brief  Khởi tạo MPU6050 trên I2C master bus
  * @param  bus_handle   I2C master bus handle (đã khởi tạo)
  * @param  config       Cấu hình cảm biến
  * @param  out_handle   Handle trả về
  */
-esp_err_t mpu6050_init(i2c_master_bus_handle_t bus_handle,
-                       const mpu6050_config_t *config,
-                       mpu6050_handle_t *out_handle);
+// esp_err_t mpu6050_init(i2c_master_bus_handle_t bus_handle,
+//                        const mpu6050_config_t *config,
+//                        mpu6050_handle_t *out_handle);
 
 /** @brief  Reset và giải phóng MPU6050 */
 esp_err_t mpu6050_deinit(mpu6050_handle_t *handle);
@@ -153,6 +154,7 @@ esp_err_t mpu6050_read_all(const mpu6050_handle_t *handle,
 esp_err_t mpu6050_self_test(mpu6050_handle_t *handle);
 void mpu6050_start();
 void mpu6050_task(void *arg);
+void TCA9548A_task(void *arg);
 #ifdef __cplusplus
 }
 #endif

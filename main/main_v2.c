@@ -38,7 +38,8 @@ void app_main(void)
     i2s_init();
     vTaskDelay(pdMS_TO_TICKS(3000)); 
    
-    xTaskCreate(mpu6050_task, "mpu6050_task", 1024*8, NULL, 5, NULL);
+    // xTaskCreate(mpu6050_task, "mpu6050_task", 1024*8, NULL, 5, NULL);
+    xTaskCreate(TCA9548A_task, "TCA9548A_task", 1024*8, NULL, 5, NULL);
     xTaskCreate(speaker_task, "test_audio_task", 1024*24, NULL, 5, NULL);
     mqtt_start();
     while (1)

@@ -390,7 +390,6 @@ void speak_vietnamese(const char *text)
 void speaker_task(void *pvParameters)
 {
     //speak_vietnamese("Xin chào! Đây là thử nghiệm Text-to-Speech trên ESP32.");
-    speak_vietnamese("Xin chào! Tôi là đệ tử của Minh");
 
     // Tắt task sau khi phát xong.
     bool spoke[10]= {false};
@@ -443,7 +442,6 @@ void speaker_task(void *pvParameters)
 
 // void speaker_task(void *pvParameters)
 // {
-//    speak_vietnamese("Xin chào! Tôi là đệ tử của Minh");
 //     // Tắt task sau khi phát xong.
 //     while (1)
 //     {
@@ -460,66 +458,3 @@ void speaker_task(void *pvParameters)
 //         vTaskDelay(pdMS_TO_TICKS(1000));
 //     }
 // }
-
-static void normalize_text(const char *src, char *dst, size_t dst_size)
-{
-    if (!src || !dst || dst_size == 0) return;
-
-    size_t i = 0;
-    for (; src[i] != '\0' && i < dst_size - 1; i++) {
-        dst[i] = (char)tolower((unsigned char)src[i]);
-    }
-    dst[i] = '\0';
-}
-
-static bool contains_any(const char *text, const char *const *patterns, size_t count)
-{
-    if (!text || !patterns) return false;
-    for (size_t i = 0; i < count; i++) {
-        if (patterns[i] && strstr(text, patterns[i])) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void response(char *text)
-{
-    if (!text || text[0] == '\0') {
-        speak_vietnamese("Mình chưa nghe rõ. Bạn nói lại giúp mình nhé.");
-        return;
-    }
-
-    char norm[256];
-    normalize_text(text, norm, sizeof(norm));
-
-    static const char *const greet_kw[] = {
-        "chào", "xin chao", "hello", "hi"
-    };
-    static const char *const bye_kw[] = {
-        "tạm biệt", "tam biet", "hẹn gặp", "hen gap", "bye", "bai bai", "biệt"
-    };
-    static const char *const name_kw[] = {
-        "tên là gì", "ten la gi", "bạn tên gì", "ban ten gi", "cậu tên gì", "tên gì", "tên là rì"
-    };
-    static const char *const weather_kw[] = {
-        "thời tiết", "thoi tiet", "trời hôm nay", "troi hom nay", "tiết hôm nay"
-    };
-    static const char *const health_kw[] = {
-        "khỏe không", "khoe khong", "ổn không", "on khong", "ban khoe khong"
-    };
-
-    if (contains_any(norm, greet_kw, sizeof(greet_kw) / sizeof(greet_kw[0]))) {
-        speak_vietnamese("Chào bạn, tôi có thể giúp gì?");
-    } else if (contains_any(norm, bye_kw, sizeof(bye_kw) / sizeof(bye_kw[0]))) {
-        speak_vietnamese("Tạm biệt! Hẹn gặp lại.");
-    } else if (contains_any(norm, name_kw, sizeof(name_kw) / sizeof(name_kw[0]))) {
-        speak_vietnamese("Tôi là robot trợ lý do Minh tạo ra.");
-    } else if (contains_any(norm, weather_kw, sizeof(weather_kw) / sizeof(weather_kw[0]))) {
-        speak_vietnamese("Mình chưa có dữ liệu thời tiết trực tiếp, nhưng hôm nay nghe có vẻ rất đẹp trời.");
-    } else if (contains_any(norm, health_kw, sizeof(health_kw) / sizeof(health_kw[0]))) {
-        speak_vietnamese("Cảm ơn bạn, tôi đang hoạt động tốt.");
-    } else {
-        speak_vietnamese("Nói ít thôi");
-    }
-}

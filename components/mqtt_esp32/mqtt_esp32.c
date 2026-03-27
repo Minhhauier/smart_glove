@@ -11,8 +11,8 @@
 static const char *TAG = "mqtt";
 static char mqtt_client_id[64] = "";
 static char *mqtt_broker_uri = "mqtts://b89cc7c8dfe0427c9dbbe952fc9c426a.s1.eu.hivemq.cloud:8883";
-static char *mqtt_username = "minhhaui";
-static char *mqtt_password = "Minh123456";
+static char *mqtt_username = "Nguyenhaui";
+static char *mqtt_password = "Nguyen2004";
 static char json_payload[1024];
 static char buffer[1024] = "";
 static char *sub_topic = "SmartGlove/sub";

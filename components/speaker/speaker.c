@@ -21,6 +21,7 @@
 #include "cache_manager.h"
 #include "mpu6050.h"
 #include "save_to_nvs.h"
+#include "at_command.h"
 
 static const char *TAG = "speaker";
 
@@ -430,6 +431,62 @@ void speaker_task(void *pvParameters)
                 free(msg);
             }
         }
+        else if(data[0].y < -0.5f && data[1].y < -0.5f && data[2].y < -0.5f){
+            char *msg = read_text_from_nvs(my_nvs_handle, "activity_5");
+            if (msg && spoke[4] == false) {
+                printf("%s\n", msg);
+                speak_vietnamese(msg);
+                spoke[4] = true;
+                free(msg);
+            }
+        }
+         else if(data[0].y > 0.5f && data[1].y > 0.5f && data[2].y > 0.5f){
+            char *msg = read_text_from_nvs(my_nvs_handle, "activity_6");
+            if (msg && spoke[5] == false) {
+                printf("%s\n", msg);
+                speak_vietnamese(msg);
+                spoke[5] = true;
+                free(msg);
+            }
+        }
+         else if(data[0].y < -0.5f && data[1].y < -0.5f && data[2].y < -0.5f){
+            char *msg = read_text_from_nvs(my_nvs_handle, "activity_7");
+            if (msg && spoke[6] == false) {
+                printf("%s\n", msg);
+                speak_vietnamese(msg);
+                spoke[6] = true;
+                free(msg);
+            }
+        }
+         else if(data[0].z > 0.5f && data[1].z > 0.5f && data[2].z > 0.5f){
+            char *msg = read_text_from_nvs(my_nvs_handle, "activity_8");
+            if (msg && spoke[7] == false) {
+                printf("%s\n", msg);
+                speak_vietnamese(msg);
+                spoke[7] = true;
+                free(msg);
+            }
+        }
+         else if(data[0].x < -0.5f && data[1].x < -0.5f && data[2].x < -0.5f){
+            char *msg = read_text_from_nvs(my_nvs_handle, "activity_9");
+            if (msg && spoke[8] == false) {
+                printf("%s\n", msg);
+                speak_vietnamese(msg);
+                spoke[8] = true;
+                free(msg);
+            }
+
+        }
+        else if(data[0].z < -0.5f && data[1].z < -0.5f && data[2].z < -0.5f){
+            char *msg = read_text_from_nvs(my_nvs_handle, "activity_10");
+            if (msg && spoke[9] == false) {
+                printf("%s\n", msg);
+                speak_vietnamese(msg);
+                spoke[9] = true;
+                request_message("0374337713", "Warning: Severe activity detected. Please check on the user.");
+                free(msg);
+            }
+        }
         else{
             for (int i = 0; i < 10; i++) {
                 spoke[i] = false;
@@ -439,22 +496,3 @@ void speaker_task(void *pvParameters)
     }
     
 }
-
-// void speaker_task(void *pvParameters)
-// {
-//     // Tắt task sau khi phát xong.
-//     while (1)
-//     {
-//         // if (accel.x > 0.7f && accel.y > -0.5f && accel.y < 0.5f) {
-//         //     speak_vietnamese("Tôi muốn đi vệ sinh");
-//         // } else if (accel.x < -0.7f && accel.y > -0.5f && accel.y < 0.5f) {
-//         //     speak_vietnamese("Tôi đói rồi");
-//         // }
-//         // else if (accel.y > 0.7f && accel.x > -0.5f && accel.x < 0.5f) {
-//         //     speak_vietnamese("Tôi mệt quá");
-//         // } else if (accel.y < -0.7f && accel.x > -0.5f && accel.x < 0.5f) {
-//         //     speak_vietnamese("Tôi khát nước");
-//         // }
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//     }
-// }

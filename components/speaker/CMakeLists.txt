@@ -10,4 +10,5 @@ idf_component_register(SRCS "speaker.c"
                         esp_wifi
                         cache_manager
                         mpu6050
-                        save_to_nvs)
+                        save_to_nvs
+                        at_command)

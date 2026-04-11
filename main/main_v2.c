@@ -13,6 +13,7 @@
 #include "config_parameter.h"
 #include "mpu6050.h"
 #include "mqtt_esp32.h"
+#include "at_command.h"
 
 static const char *TAG = "main";
 
@@ -37,11 +38,14 @@ void app_main(void)
     printf("wifi đã được khởi tạo.\n");
     i2s_init();
     vTaskDelay(pdMS_TO_TICKS(3000)); 
-   
+    uart_sim_init();
     // xTaskCreate(mpu6050_task, "mpu6050_task", 1024*8, NULL, 5, NULL);
     xTaskCreate(TCA9548A_task, "TCA9548A_task", 1024*8, NULL, 5, NULL);
     xTaskCreate(speaker_task, "test_audio_task", 1024*24, NULL, 5, NULL);
     mqtt_start();
+    vTaskDelay(pdMS_TO_TICKS(3000)); 
+    // request_call("0374337713");
+ //   request_message("0374337713", "Xin chào! Đây là tin nhắn thử nghiệm từ ESP32.");
     while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));

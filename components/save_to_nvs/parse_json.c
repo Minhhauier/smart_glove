@@ -39,6 +39,24 @@ void parse_json(const char* json_str) {
                 case 4:
                     save_text_to_nvs(my_nvs_handle_json, "activity_4", want_str);
                     break;
+                case 5:
+                    save_text_to_nvs(my_nvs_handle_json, "activity_5", want_str);
+                    break;
+                case 6:
+                    save_text_to_nvs(my_nvs_handle_json, "activity_6", want_str);
+                    break;
+                case 7:
+                    save_text_to_nvs(my_nvs_handle_json, "activity_7", want_str);
+                    break;
+                case 8:
+                    save_text_to_nvs(my_nvs_handle_json, "activity_8", want_str);
+                    break;
+                case 9:
+                    save_text_to_nvs(my_nvs_handle_json, "activity_9", want_str);
+                    break;
+                case 10:
+                    save_text_to_nvs(my_nvs_handle_json, "activity_10", want_str);
+                    break;
                 default:
                     break;
                 }

@@ -16,4 +16,5 @@ idf_component_register(
         mpu6050
         mqtt
         mqtt_esp32
+        at_command
 )

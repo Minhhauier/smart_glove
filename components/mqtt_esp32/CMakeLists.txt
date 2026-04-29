@@ -6,4 +6,5 @@ idf_component_register(
         esp_wifi
 
         save_to_nvs
+        config_parameter
 )

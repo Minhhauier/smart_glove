@@ -138,6 +138,7 @@ void TCA9548A_task(void *arg)
     for (uint8_t ch = 0; ch < 3; ch++) {
         mpu6050_init(ch);
     }
+    
     while (1) {
         for (uint8_t ch = 0; ch < 3; ch++) {
             if (mpu6050_read_data(ch, &data[ch]) == ESP_OK) {

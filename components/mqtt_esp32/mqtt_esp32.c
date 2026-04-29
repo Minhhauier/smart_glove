@@ -7,6 +7,7 @@
 
 #include "mqtt_esp32.h"
 #include "save_to_nvs.h"
+#include "config_parameter.h"
 
 static const char *TAG = "mqtt";
 static char mqtt_client_id[64] = "";

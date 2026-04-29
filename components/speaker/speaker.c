@@ -22,6 +22,7 @@
 #include "mpu6050.h"
 #include "save_to_nvs.h"
 #include "at_command.h"
+#include "connect_wifi.h"
 
 static const char *TAG = "speaker";
 
@@ -30,9 +31,9 @@ static i2s_chan_handle_t tx_channel = NULL;
 static mp3dec_t s_mp3_decoder;
 
 //buffer download mp3 data
-static uint8_t *mp3_data = NULL;
-static size_t mp3_len = 0;
-static size_t mp3_cap = 0;
+uint8_t *mp3_data = NULL;
+size_t mp3_len = 0;
+size_t mp3_cap = 0;
 static bool   tts_cache_enabled = true;
 
 // I2S protocol
@@ -387,104 +388,200 @@ void speak_vietnamese(const char *text)
     esp_http_client_cleanup(client);
     vTaskDelay(pdMS_TO_TICKS(300));
 }
+void save_original_data(const char *key,const char *text)
+{
+    ESP_LOGI(TAG, "Phát: %s", text);
+    ESP_LOGI(TAG,
+             "Heap trước HTTP: free=%u, largest=%u",
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
+    if(got_ip == false){
+        ESP_LOGE(TAG, "Không có kết nối mạng! Không thể tải TTS.");
+        return;
+    }
+    mp3_len = 0;
+    // Đã có cache với key này -> bỏ qua, không cần tải lại.
+    if (tts_cache_load_by_key(key)) {
+        printf("Đã có data cho key='%s'\n", key);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        return;
+    }
+
+    char encoded[512] = {0};
+    url_encode(text, encoded, sizeof(encoded));
+
+    char url[640] = {0};
+    snprintf(url, sizeof(url),
+             "http://translate.google.com/translate_tts"
+             "?ie=UTF-8&client=tw-ob&tl=vi&q=%s", encoded);
+
+    esp_http_client_config_t config = {
+        .url           = url,
+        .event_handler = http_event_handler,
+        .buffer_size   = HTTP_BUF_SIZE,
+        .timeout_ms    = 15000,
+        .user_agent    = "Mozilla/5.0",
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) {
+        ESP_LOGE(TAG, "Không tạo được HTTP client!");
+        return;
+    }
+
+    esp_err_t err = esp_http_client_perform(client);
+    int status    = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "HTTP %d | MP3: %d bytes", status, (int)mp3_len);
+
+    if (err == ESP_OK && status == 200 && mp3_len > 0) {
+        printf("Saved cache key='%s'\n", key);
+        tts_cache_store_by_key(key, mp3_data, mp3_len);
+    } else {
+        ESP_LOGE(TAG, "Lỗi TTS: %s (HTTP %d)", esp_err_to_name(err), status);
+    }
+
+    esp_http_client_cleanup(client);
+    vTaskDelay(pdMS_TO_TICKS(300));
+}
+
+void save_change_tts_data(const char *key,const char *text)
+{
+    // ESP_LOGI(TAG, "Phát: %s", text);
+    // ESP_LOGI(TAG,
+    //          "Heap trước HTTP: free=%u, largest=%u",
+    //          (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+    //          (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
+    if(got_ip == false){
+        ESP_LOGE(TAG, "Không có kết nối mạng! Không thể tải TTS.");
+        return;
+    }
+    mp3_len = 0;
+
+    char encoded[512] = {0};
+    url_encode(text, encoded, sizeof(encoded));
+
+    char url[640] = {0};
+    snprintf(url, sizeof(url),
+             "http://translate.google.com/translate_tts"
+             "?ie=UTF-8&client=tw-ob&tl=vi&q=%s", encoded);
+
+    esp_http_client_config_t config = {
+        .url           = url,
+        .event_handler = http_event_handler,
+        .buffer_size   = HTTP_BUF_SIZE,
+        .timeout_ms    = 15000,
+        .user_agent    = "Mozilla/5.0",
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) {
+        ESP_LOGE(TAG, "Không tạo được HTTP client!");
+        return;
+    }
+
+    esp_err_t err = esp_http_client_perform(client);
+    int status    = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "HTTP %d | MP3: %d bytes", status, (int)mp3_len);
+
+    if (err == ESP_OK && status == 200 && mp3_len > 0) {
+        printf("changed cache key='%s'\n", key);
+        tts_cache_store_by_key(key, mp3_data, mp3_len);
+    } else {
+        ESP_LOGE(TAG, "Lỗi TTS: %s (HTTP %d)", esp_err_to_name(err), status);
+    }
+
+    esp_http_client_cleanup(client);
+    vTaskDelay(pdMS_TO_TICKS(300));
+}
 
 void speaker_task(void *pvParameters)
 {
-    //speak_vietnamese("Xin chào! Đây là thử nghiệm Text-to-Speech trên ESP32.");
-
+   // speak_vietnamese("Xin chào! Đây là thử nghiệm Text-to-Speech trên ESP32.");
+    save_original_data("activity_1", "Tôi đói quá");
+    save_original_data("activity_2", "Tôi khát nước quá");
+    save_original_data("activity_3", "Tôi muốn xem phim");
+    save_original_data("activity_4", "Tôi muốn đi vệ sinh");
+    save_original_data("activity_5", "Tôi muốn đi ngủ");
+    save_original_data("activity_6", "Tôi muốn hít khí trời");
+    save_original_data("activity_7", "Tôi muốn ăn phở");
+    save_original_data("activity_8", "Tôi muốn nghe nhạc");
+    save_original_data("activity_9", "Tôi muốn ngồi dậy");
+    save_original_data("activity_10", "Tôi khó thở quá xin giúp tôi với");
     // Tắt task sau khi phát xong.
     bool spoke[10]= {false};
     while (1)
     {
-        if (data[0].x > 0.7f && data[1].x < 0.5f && data[2].x < 0.5f) {
-           char *msg = read_text_from_nvs(my_nvs_handle, "activity_1");
-            if (msg && spoke[0] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+        if (data[0].x < -0.7f && -0.5f<data[1].x && data[1].x < 0.5f && -0.5f<data[2].x && data[2].x < 0.5f) {
+        //    char *msg = read_text_from_nvs(my_nvs_handle, "activity_1");
+            printf("activity_1: %f\n",data[0].x);
+            if (tts_cache_load_by_key("activity_1") && spoke[0] == false) {
+                printf("Đã phát cache cho key='activity_1'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[0] = true;
-                free(msg);
             }
            // speak_vietnamese(read_text_from_nvs(my_nvs_handle, "mpu_status_1"));
-        } else if (data[1].x > 0.7f && data[0].x < 0.5f && data[2].x < 0.5f) {
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_2");
-            if (msg && spoke[1] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+        } else if (data[0].x > 0.7f && -0.5f<data[1].x && data[1].x < 0.5f && -0.5f<data[2].x && data[2].x < 0.5f) {
+            if (tts_cache_load_by_key("activity_2") && spoke[1] == false) {
+                printf("Đã phát cache cho key='activity_2'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[1] = true;
-                free(msg);
             }
         }
-        else if (data[2].x > 0.7f && data[0].x < 0.5f && data[1].x < 0.5f){
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_3");
-            if (msg && spoke[2] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+        else if (data[2].x > 0.7f && -0.5f<data[0].x && data[0].x < 0.5f && -0.5f<data[1].x && data[1].x < 0.5f){
+            if (tts_cache_load_by_key("activity_3") && spoke[2] == false) {
+                printf("Đã phát cache cho key='activity_3'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[2] = true;
-                free(msg);
             }
-        } else if (data[0].x > 0.7f && data[1].x > 0.7f && data[2].x < 0.5f) {
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_4");
-            if (msg && spoke[3] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+        } else if (data[2].x < -0.7f && -0.5f<data[1].x && data[1].x < 0.5f && -0.5f<data[2].x && data[2].x < 0.5f) {
+            if (tts_cache_load_by_key("activity_4") && spoke[3] == false) {
+                printf("Đã phát cache cho key='activity_4'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[3] = true;
-                free(msg);
             }
         }
-        else if(data[0].y < -0.5f && data[1].y < -0.5f && data[2].y < -0.5f){
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_5");
-            if (msg && spoke[4] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+        else if(data[1].x < -0.7f && -0.5f<data[0].x && data[0].x < 0.5f && -0.5f<data[2].x && data[2].x < 0.5f){
+            if (tts_cache_load_by_key("activity_5") && spoke[4] == false) {
+                printf("Đã phát cache cho key='activity_5'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[4] = true;
-                free(msg);
             }
         }
-         else if(data[0].y > 0.5f && data[1].y > 0.5f && data[2].y > 0.5f){
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_6");
-            if (msg && spoke[5] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+         else if(data[0].x < -0.7f && -0.5f<data[1].x && data[1].x < 0.5f && data[2].x < -0.7f){
+            if (tts_cache_load_by_key("activity_6") && spoke[5] == false) {
+                printf("Đã phát cache cho key='activity_6'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[5] = true;
-                free(msg);
             }
         }
-         else if(data[0].y < -0.5f && data[1].y < -0.5f && data[2].y < -0.5f){
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_7");
-            if (msg && spoke[6] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+         else if(data[0].x > 0.7f && -0.5f<data[1].x && data[1].x < 0.5f && data[2].x > 0.7f){
+            if (tts_cache_load_by_key("activity_7") && spoke[6] == false) {
+                printf("Đã phát cache cho key='activity_7'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[6] = true;
-                free(msg);
             }
         }
-         else if(data[0].z > 0.5f && data[1].z > 0.5f && data[2].z > 0.5f){
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_8");
-            if (msg && spoke[7] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+         else if( -0.5f<data[0].x && data[0].x < 0.5f && data[1].x < -0.7f && data[2].x < -0.7f){
+            if (tts_cache_load_by_key("activity_8") && spoke[7] == false) {
+                printf("Đã phát cache cho key='activity_8'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[7] = true;
-                free(msg);
             }
         }
-         else if(data[0].x < -0.5f && data[1].x < -0.5f && data[2].x < -0.5f){
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_9");
-            if (msg && spoke[8] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+         else if(data[0].x < -0.7f && -0.5f<data[1].x && data[1].x < 0.5f && data[2].x < -0.7f){
+            if (tts_cache_load_by_key("activity_9") && spoke[8] == false) {
+                printf("Đã phát cache cho key='activity_9'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[8] = true;
-                free(msg);
             }
 
         }
-        else if(data[0].z < -0.5f && data[1].z < -0.5f && data[2].z < -0.5f){
-            char *msg = read_text_from_nvs(my_nvs_handle, "activity_10");
-            if (msg && spoke[9] == false) {
-                printf("%s\n", msg);
-                speak_vietnamese(msg);
+        else if(data[0].x < -0.7f && data[1].x < -0.7f && data[2].x < -0.7f){
+            if (tts_cache_load_by_key("activity_10") && spoke[9] == false) {
+                printf("Đã phát cache cho key='activity_10'\n");
+                play_mp3_data(mp3_data, mp3_len);
                 spoke[9] = true;
                 request_message("0374337713", "Warning: Severe activity detected. Please check on the user.");
-                free(msg);
             }
         }
         else{

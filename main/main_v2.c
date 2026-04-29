@@ -10,6 +10,7 @@
 #include "connect_wifi.h"
 #include "speaker.h"
 // #include "cache_manager.h"
+#include "cache_manager.h"
 #include "config_parameter.h"
 #include "mpu6050.h"
 #include "mqtt_esp32.h"
@@ -34,6 +35,8 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    tts_cache_init();   // khởi tạo partition 'storage' cho cache MP3
+
     wifi_init();
     printf("wifi đã được khởi tạo.\n");
     i2s_init();
@@ -41,11 +44,11 @@ void app_main(void)
     uart_sim_init();
     // xTaskCreate(mpu6050_task, "mpu6050_task", 1024*8, NULL, 5, NULL);
     xTaskCreate(TCA9548A_task, "TCA9548A_task", 1024*8, NULL, 5, NULL);
-    xTaskCreate(speaker_task, "test_audio_task", 1024*24, NULL, 5, NULL);
+    xTaskCreate(speaker_task, "speaker_task", 1024*24, NULL, 5, NULL);
     mqtt_start();
     vTaskDelay(pdMS_TO_TICKS(3000)); 
     // request_call("0374337713");
- //   request_message("0374337713", "Xin chào! Đây là tin nhắn thử nghiệm từ ESP32.");
+    //request_message("0374337713", "Xin chào! Đây là tin nhắn thử nghiệm từ ESP32.");
     while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));

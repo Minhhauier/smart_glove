@@ -14,6 +14,8 @@ static int retry_count = 0;
 static esp_event_handler_instance_t wifi_event_instance = NULL;
 static esp_event_handler_instance_t ip_event_instance = NULL;
 
+bool got_ip = false;
+
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void *event_data)
 {
@@ -33,11 +35,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             ESP_LOGI(TAG, "Thử lại WiFi %d/%d...", retry_count, WIFI_MAX_RETRY);
         } else {
             xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
+            got_ip = false;
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "WiFi OK! IP: " IPSTR, IP2STR(&event->ip_info.ip));
         retry_count = 0;
+        got_ip = true;
         xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
@@ -89,6 +93,7 @@ void wifi_init(void)
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "Kết nối WiFi thành công!");
     } else {
-        ESP_LOGE(TAG, "Kết nối WiFi thất bại!");    
+        ESP_LOGE(TAG, "Kết nối WiFi thất bại!");
+        got_ip = false;
     }      
 }

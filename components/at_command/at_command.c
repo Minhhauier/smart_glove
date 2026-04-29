@@ -17,6 +17,8 @@
 #define TX_SIM GPIO_NUM_17
 #define RX_SIM GPIO_NUM_39
 
+static char cmd[128];
+static char client[64];
 
 void send_at_get_respond(char *cmd, int timeout)
 {
@@ -93,33 +95,26 @@ char *get_respond(int timeout)
     }
     return NULL;
 }
-// void copy_respond_to_array(char *cmd,char *array){
-//     send_at(cmd);
-//     char *data = get_respond(1000);
-//     if(strcmp(cmd,"AT+CCLK?")==0){
-//         char *start = strchr(data,'"');
-//         char *end = strrchr(data,'"');
-//         if(start!=NULL && end!=NULL && end>start){
-//             int len = end - start - 1;
-//             if(len<64){
-//                 memcpy(array,start+1,len);
-//                 array[len]='\0';
-//             }
-//         }
-//         // printf("Date time: %s\r\n",array);
-//     }
-//     // strcpy(array,data);
-//     free(data);
-// }
+void mqtt_connect(){
+    send_at_get_respond("AT+QMTCFG=\"keepalive\",1,60",1000);
+    snprintf(cmd,sizeof(cmd),"AT+QMTOPEN=1,%s",MQTT_BROKER_URL);
+    send_at_get_respond(cmd,1000);
+    snprintf(client, sizeof(client), "%s_%s","SmartGlove" , "haui");
+    snprintf(cmd,sizeof(cmd),"AT+QMTCONN=1,\"%s\",[\"%s\",\"%s\"]",client,USERNAME,PASSWORD);
+    send_at_get_respond(cmd,1000);
+}
 
 void request_call(const char *phone_number) {
     char cmd[64];
-    send_at_get_respond("ATD?", 1000); // Kiểm tra xem module có sẵn sàng nhận lệnh gọi không
-    send_at_get_respond("AT+CREG?", 1000); // Kiểm tra đăng ký mạng
-    send_at_get_respond("AT+QCFG=\"volte\"",1000); // Kiểm tra cấu hình VoLTE
+    send_at_get_respond("AT+CMEE=2", 1000);          // Bật verbose error
+    send_at_get_respond("AT+CPIN?", 1000);           // Kiểm tra SIM PIN
+    send_at_get_respond("AT+CEREG?", 3000);          // Kiểm tra đăng ký LTE (quan trọng với EG800K)
+    send_at_get_respond("AT+QCFG=\"ims\"", 1000);   // Kiểm tra IMS/VoLTE có bật không
+    send_at_get_respond("AT+QCFG=\"ims\",1", 2000); // Bật IMS/VoLTE (bắt buộc với EG800K)
+    send_at_get_respond("AT+QIMSREG?", 3000);        // Kiểm tra trạng thái đăng ký IMS
+    vTaskDelay(pdMS_TO_TICKS(3000));                 // Chờ IMS đăng ký xong
     snprintf(cmd, sizeof(cmd), "ATD%s;", phone_number);
-    send_at_get_respond("AT+CMEE=2",5000);
-    send_at_get_respond(cmd,5000);
+    send_at_get_respond(cmd, 5000);
 }
 
 void request_message(const char *phone_number, const char *message) {

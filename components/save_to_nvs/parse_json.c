@@ -6,6 +6,7 @@
 #include <esp_log.h>
 
 #include "save_to_nvs.h"
+#include "speaker.h"
 
 nvs_handle_t my_nvs_handle_json;
 
@@ -28,34 +29,34 @@ void parse_json(const char* json_str) {
                 switch (act)
                 {
                 case 1:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_1", want_str);
+                    save_change_tts_data("activity_1", want_str);
                     break;
                 case 2:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_2", want_str);
+                    save_change_tts_data("activity_2", want_str);
                     break;
                 case 3:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_3", want_str);
+                    save_change_tts_data("activity_3", want_str);
                     break; 
                 case 4:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_4", want_str);
+                    save_change_tts_data("activity_4", want_str);
                     break;
                 case 5:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_5", want_str);
+                    save_change_tts_data("activity_5", want_str);
                     break;
                 case 6:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_6", want_str);
+                    save_change_tts_data("activity_6", want_str);
                     break;
                 case 7:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_7", want_str);
+                    save_change_tts_data("activity_7", want_str);
                     break;
                 case 8:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_8", want_str);
+                    save_change_tts_data("activity_8", want_str);
                     break;
                 case 9:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_9", want_str);
+                    save_change_tts_data("activity_9", want_str);
                     break;
                 case 10:
-                    save_text_to_nvs(my_nvs_handle_json, "activity_10", want_str);
+                    save_change_tts_data("activity_10", want_str);
                     break;
                 default:
                     break;

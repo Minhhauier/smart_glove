@@ -19,6 +19,7 @@
 
 static char cmd[128];
 static char client[64];
+static char buffer[2048];
 
 void send_at_get_respond(char *cmd, int timeout)
 {
@@ -96,6 +97,11 @@ char *get_respond(int timeout)
     return NULL;
 }
 void mqtt_connect(){
+    send_at_get_respond("AT+QMTCFG=\"recv/mode\",0,0,1", 1000);        
+    send_at_get_respond("AT+QMTCFG=\"SSL\",0,1,2", 1000);
+    snprintf(cmd,sizeof(cmd),"AT+QFUPL=\"UFS:cacert.pem\",%d,100", strlen(cert_pem_v1));
+    send_at_get_respond(cmd, 1000);
+    send_at_get_respond(cert_pem_v1, 1000);
     send_at_get_respond("AT+QMTCFG=\"keepalive\",1,60",1000);
     snprintf(cmd,sizeof(cmd),"AT+QMTOPEN=1,%s",MQTT_BROKER_URL);
     send_at_get_respond(cmd,1000);

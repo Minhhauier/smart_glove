@@ -33,4 +33,5 @@ void copy_respond_to_array(char *cmd,char *array);
 void init_queues();
 void request_call(const char *phone_number);
 void request_message(const char *phone_number, const char *message);
+void mqtt_connect();
 #endif

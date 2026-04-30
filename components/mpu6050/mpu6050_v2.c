@@ -30,7 +30,9 @@ static esp_err_t i2c_master_init(void)
         .master.clk_speed = I2C_MASTER_FREQ_HZ,
     };
     ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_PORT, &conf));
-    return i2c_driver_install(I2C_MASTER_PORT, conf.mode, 0, 0, 0);
+
+    esp_err_t ret = i2c_driver_install(I2C_MASTER_PORT, conf.mode, 0, 0, 0);
+    return ret;
 }
 
 static esp_err_t tca9548a_select_channel(uint8_t channel)
@@ -109,7 +111,9 @@ static esp_err_t mpu6050_read_data(uint8_t channel, mpu6050_data_t *out)
 
     uint8_t raw[14];
     esp_err_t ret = mpu6050_read_reg(MPU_ACCEL_XOUT, raw, 14);
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) {
+        return ret;
+    }
 
     int16_t ax_raw = (int16_t)((raw[0]  << 8) | raw[1]);
     int16_t ay_raw = (int16_t)((raw[2]  << 8) | raw[3]);

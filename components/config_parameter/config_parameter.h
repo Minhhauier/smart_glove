@@ -37,7 +37,7 @@
 #define I2C_MASTER_PORT      I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ   400000
 // cấu hình kết nối mqtt 
-#define MQTT_BROKER_URL "b89cc7c8dfe0427c9dbbe952fc9c426a.s1.eu.hivemq.cloud,8883"
+#define MQTT_BROKER_URL "broker.chtlab.us,1883"
 static const char *cert_pem_v1 =
 "-----BEGIN CERTIFICATE-----\n"
 "MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw\n"
@@ -70,7 +70,11 @@ static const char *cert_pem_v1 =
 "mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d\n"
 "emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=\n"
 "-----END CERTIFICATE-----\n";
-#define USERNAME "Nguyenhaui"
-#define PASSWORD "Nguyen2004"
+#define USERNAME "username"
+#define PASSWORD "password"
+#define GEN_SUB_TOPIC "ESP32/sub"
+#define PRV_SUB_TOPIC "ESP32/sub_v2"
+#define PUB_TOPIC "ESP32/pub"
+#define BUF_SIZE_SIM 2048
 
 #endif

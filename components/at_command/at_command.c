@@ -10,6 +10,7 @@
 
 #include "config_parameter.h"
 #include "at_command.h"
+#include "system_manage.h"
 // #include "control_relay.h"
 
 #define BUF_SIZE_SIM 2048
@@ -20,6 +21,8 @@
 static char cmd[128];
 static char client[64];
 static char buffer[2048];
+
+bool mqtt_sub_success = false;
 
 void send_at_get_respond(char *cmd, int timeout)
 {
@@ -97,17 +100,59 @@ char *get_respond(int timeout)
     return NULL;
 }
 void mqtt_connect(){
-    send_at_get_respond("AT+QMTCFG=\"recv/mode\",0,0,1", 1000);        
-    send_at_get_respond("AT+QMTCFG=\"SSL\",0,1,2", 1000);
-    snprintf(cmd,sizeof(cmd),"AT+QFUPL=\"UFS:cacert.pem\",%d,100", strlen(cert_pem_v1));
-    send_at_get_respond(cmd, 1000);
-    send_at_get_respond(cert_pem_v1, 1000);
     send_at_get_respond("AT+QMTCFG=\"keepalive\",1,60",1000);
     snprintf(cmd,sizeof(cmd),"AT+QMTOPEN=1,%s",MQTT_BROKER_URL);
     send_at_get_respond(cmd,1000);
-    snprintf(client, sizeof(client), "%s_%s","SmartGlove" , "haui");
+    snprintf(client, sizeof(client), "%s_%s", "esp32", "test");
     snprintf(cmd,sizeof(cmd),"AT+QMTCONN=1,\"%s\",[\"%s\",\"%s\"]",client,USERNAME,PASSWORD);
     send_at_get_respond(cmd,1000);
+}
+
+void mqtt_sub(char *gen_subtopic, char *prv_subtopic){
+    char cmd_sub[256];
+    snprintf(cmd_sub,sizeof(cmd_sub),"AT+QMTSUB=1,1,%s,0,%s,0",gen_subtopic,prv_subtopic);
+    send_at(cmd_sub);
+    char *data = get_respond(1000);
+    if(data!=NULL){
+        if(strstr(data,"+QMTSUB: 1,1,0,0,0")!=NULL){ printf("Sub success\r\n"); mqtt_sub_success = true;}
+        else mqtt_sub_success = false;
+    }
+    else {
+        mqtt_sub_success = false;
+        printf("No data respond\r\n");
+    }
+    free(data);
+}
+
+void mqtt_sim_init(){
+    int count = 0;
+    mqtt_connect();
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    mqtt_sub(GEN_SUB_TOPIC,PRV_SUB_TOPIC);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    while (mqtt_sub_success == false)
+    {
+        count = count + 1;
+        mqtt_connect();
+        mqtt_sub(GEN_SUB_TOPIC,PRV_SUB_TOPIC);
+        if (count > 10)
+        {
+            count = 0;
+            send_at("AT+CFUN=1,1");
+            printf("Connect failed 10 times - restarting module...\r\n");
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
+    }
+    printf("MQTT connected and subscribed successfully\r\n");
+}
+
+void mqtt_pub(char *topic,char *payload){
+    snprintf(cmd,sizeof(cmd),"AT+QMTPUBEX=1,0,0,0,\"%s\",%d",topic,strlen(payload));
+  //  send_at_get_respond(cmd,1000);
+   // send_at_get_respond(payload,1000);
+   send_at(cmd);
+   vTaskDelay(50/portTICK_PERIOD_MS);
+   send_at(payload);
 }
 
 void request_call(const char *phone_number) {
@@ -125,10 +170,72 @@ void request_call(const char *phone_number) {
 
 void request_message(const char *phone_number, const char *message) {
     char cmd[64];
-    send_at_get_respond("AT+CMGF=1", 1000); // Chuyển sang chế độ text
-    send_at_get_respond("AT+CSCS=\"GSM\"", 1000); // Chọn bộ ký tự GSM
+    send_at_get_respond("AT+CMGF=1", 1000); 
+    send_at_get_respond("AT+CSCS=\"GSM\"", 1000); 
     snprintf(cmd, sizeof(cmd), "AT+CMGS=\"%s\"", phone_number);
-    send_at_get_respond(cmd, 1000); // Gửi lệnh gửi tin nhắn
-    uart_write_bytes(UART_NUM_1, message, strlen(message)); // Gửi nội dung tin nhắn
-    uart_write_bytes(UART_NUM_1, "\x1A", 1); // Gửi ký tự Ctrl+Z để kết thúc tin nhắn
+    send_at_get_respond(cmd, 1000); 
+    uart_write_bytes(UART_NUM_1, message, strlen(message)); 
+    uart_write_bytes(UART_NUM_1, "\x1A", 1); 
+}
+
+void read_and_send_to_queue_task(void *pvParameters)
+{
+    char *data_receiver=malloc(2048);
+    char data_copy[2048];
+   // printf("Start read_and_send_to_queue_task\r\n");
+    while (1)
+    {
+        int len = uart_read_bytes(UART_NUM_1, data_receiver, 2048, 30 / portTICK_PERIOD_MS);
+        if (len > 0)
+        {
+            data_receiver[len] = '\0';
+            // printf("data_rx: %s\r\n",data_receiver);
+            if (strstr(data_receiver, "+QMTRECV:") != NULL)
+            {
+                memcpy(data_copy,data_receiver,len+1);
+            
+                //   printf("data_rx: %s\r\n",data_receiver);
+                    convert_to_json_update(data_copy);
+                //   printf("Send to mqtt queue: %s\r\n", data_receiver);
+                //  xQueueSend(mqtt_queue_handle, data_receiver, portMAX_DELAY);
+            }
+            else{
+                // printf("data_rx: %s\r\n",data_receiver);
+                xQueueSend(sim_at_queue_handle, data_receiver, portMAX_DELAY);
+            }
+        }
+        
+    }
+    free(data_receiver);
+}
+void publish_emergency(const char *message) {
+    char json[512];
+    snprintf(json, sizeof(json), 
+        "{\n"
+        "  \"command_type\": 202,\n"
+        "  \"data\": {\n"
+        "    \"want\": \"%s\"\n"
+        "  }\n"
+        "}", 
+        message);
+
+    xQueueSend(publish_queue_handle, json, portMAX_DELAY);
+    printf("Published emergency message\r\n");
+}
+
+void publish_response_connect_wifi(char *ssid,char *ip,int status){
+    snprintf(buffer, sizeof(buffer), 
+        "{\n"
+        "  \"command_type\": 203,\n"
+        "  \"data\": {\n"
+        "    \"ssid\": \"%s\",\n"
+        "    \"ip\": \"%s\",\n"
+        "    \"status\": %d\n"
+        "  }\n"
+        "}", 
+        ssid, ip, status);
+
+        xQueueSend(publish_queue_handle,buffer,portMAX_DELAY);
+        printf("Published version info1\r\n");
+
 }

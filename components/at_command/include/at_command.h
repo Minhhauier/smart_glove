@@ -4,11 +4,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-extern QueueHandle_t sim_at_queue_handle;
-extern QueueHandle_t mqtt_queue_handle;
-extern QueueHandle_t gps_queue_handle;
-extern QueueHandle_t publish_queue_handle;
-extern int queue_created;
+
+extern bool mqtt_sub_success;
+void mqtt_pub(char *topic,char *payload);
 /**
  * @brief use to send and read respond at command at the same time
  */
@@ -34,4 +32,9 @@ void init_queues();
 void request_call(const char *phone_number);
 void request_message(const char *phone_number, const char *message);
 void mqtt_connect();
+void mqtt_sim_init();
+void convert_to_json_update(const char *data);
+
+void publish_emergency(const char *message);
+void publish_response_connect_wifi(char *ssid,char *ip,int status);
 #endif

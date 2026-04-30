@@ -292,8 +292,8 @@ void mpu6050_start(){
 
 void mpu6050_task(void *arg)
 {
-    save_text_to_nvs(my_nvs_handle_1, "mpu_status_1", "Tôi muốn ăn cơm");
-    save_text_to_nvs(my_nvs_handle_1, "mpu_status_2", "Tôi muốn ăn phở");
+    // save_text_to_nvs(my_nvs_handle_1, "mpu_status_1", "Tôi muốn ăn cơm");
+    // save_text_to_nvs(my_nvs_handle_1, "mpu_status_2", "Tôi muốn ăn phở");
     mpu6050_start();
     while (1)
     {

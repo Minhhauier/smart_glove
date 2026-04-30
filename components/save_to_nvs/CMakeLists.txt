@@ -3,4 +3,6 @@ idf_component_register(SRCS "save_to_nvs.c" "parse_json.c"
                     REQUIRES 
                         nvs_flash
                         speaker
-                        json)
+                        json
+                        
+                        connect_wifi)   

@@ -8,4 +8,6 @@ idf_component_register(
             freertos
 
             config_parameter
+            save_to_nvs
+            main
             )

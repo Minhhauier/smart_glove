@@ -7,5 +7,6 @@ idf_component_register(SRCS "mpu6050_v2.c"
                         esp_common
                         config_parameter
                         nvs_flash
+                        ssd1306
                         
                         save_to_nvs)

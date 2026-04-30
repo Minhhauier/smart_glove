@@ -199,10 +199,6 @@ void read_and_send_to_queue_task(void *pvParameters)
                 //   printf("Send to mqtt queue: %s\r\n", data_receiver);
                 //  xQueueSend(mqtt_queue_handle, data_receiver, portMAX_DELAY);
             }
-            else{
-                // printf("data_rx: %s\r\n",data_receiver);
-                xQueueSend(sim_at_queue_handle, data_receiver, portMAX_DELAY);
-            }
         }
         
     }
@@ -219,7 +215,8 @@ void publish_emergency(const char *message) {
         "}", 
         message);
 
-    xQueueSend(publish_queue_handle, json, portMAX_DELAY);
+    // xQueueSend(publish_queue_handle, json, portMAX_DELAY);
+    mqtt_pub(PUB_TOPIC,json); 
     printf("Published emergency message\r\n");
 }
 
@@ -235,7 +232,8 @@ void publish_response_connect_wifi(char *ssid,char *ip,int status){
         "}", 
         ssid, ip, status);
 
-        xQueueSend(publish_queue_handle,buffer,portMAX_DELAY);
+        // xQueueSend(publish_queue_handle,buffer,portMAX_DELAY);
+        mqtt_pub(PUB_TOPIC,buffer);
         printf("Published version info1\r\n");
 
 }

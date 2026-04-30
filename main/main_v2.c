@@ -37,29 +37,19 @@ void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     tts_cache_init();   // khởi tạo partition 'storage' cho cache MP3
-
-    // wifi_init();
     printf("wifi đã được khởi tạo.\n");
     i2s_init();
-    init_queues();
     vTaskDelay(pdMS_TO_TICKS(3000)); 
     uart_sim_init();    
     mqtt_sim_init();
-    // mqtt_connect();
     while (mqtt_sub_success==false)
     {
         vTaskDelay(pdMS_TO_TICKS(1000)); 
     }
     
-    // xTaskCreate(mpu6050_task, "mpu6050_task", 1024*8, NULL, 5, NULL);
-    xTaskCreate(TCA9548A_task, "TCA9548A_task", 1024*8, NULL, 5, NULL);
+    xTaskCreate(TCA9548A_task, "TCA9548A_task", 1024*4, NULL, 5, NULL);
     xTaskCreate(speaker_task, "speaker_task", 1024*24, NULL, 5, NULL);
-    xTaskCreate(read_and_send_to_queue_task, "read_and_send_to_queue_task", 1024*8, NULL, 5, NULL);
-    xTaskCreate(sim_mqtt_task, "sim_mqtt_task", 1024*8, NULL, 5, NULL);
-        // request_call("0374337713");
-    // mqtt_start();
-    // request_call("0374337713");
-    //request_message("0374337713", "Xin chào! Đây là tin nhắn thử nghiệm từ ESP32.");
+    xTaskCreate(read_and_send_to_queue_task, "read_and_send_to_queue_task", 1024*4, NULL, 5, NULL);
     while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));

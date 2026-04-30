@@ -4,6 +4,7 @@ idf_component_register(SRCS "speaker.c"
                         esp_http_client
                         esp_driver_i2s
                         nvs_flash
+                        ssd1306
 
                         minimp3
                         config_parameter
@@ -12,4 +13,5 @@ idf_component_register(SRCS "speaker.c"
                         mpu6050
                         save_to_nvs
                         at_command
-                        connect_wifi)
+                        connect_wifi
+                         )

@@ -27,20 +27,16 @@ void sim_mqtt_task(void *pvParameters){
     while (1)
     {
         if(mqtt_sub_success){
-            if(xQueueReceive(mqtt_queue_handle,data_recei,pdMS_TO_TICKS(50))==pdTRUE){
-              // ESP_LOGI(MQTT_TAG,"%s",data_recei);
-               if(strstr(data_recei,"serial_number")!=NULL) convert_to_json_update(data_recei);
-            }
-            if(xQueueReceive(sim_at_queue_handle,data_recei,pdMS_TO_TICKS(50))==pdTRUE){
-              //  ESP_LOGI(DATA_SIM_TAG,"%s",data_recei);
-                if(strstr(data_recei,"+QMTSTAT: 1,1") || strstr(data_recei,"RDY")||strstr(data_recei,"+QMTSTAT: 1,2")){
-                    mqtt_sub_success=false;
-                }
-                else if(strstr(data_recei,"AT+QMTPUBEX") && strstr(data_recei,"ERROR")){
-                    mqtt_sub_success=false;
-                }
-            }
-            if(xQueueReceive(publish_queue_handle,data_recei,pdMS_TO_TICKS(50))==pdTRUE){
+            // if(xQueueReceive(sim_at_queue_handle,data_recei,pdMS_TO_TICKS(1000))==pdTRUE){
+            //   //  ESP_LOGI(DATA_SIM_TAG,"%s",data_recei);
+            //     if(strstr(data_recei,"+QMTSTAT: 1,1") || strstr(data_recei,"RDY")||strstr(data_recei,"+QMTSTAT: 1,2")){
+            //         mqtt_sub_success=false;
+            //     }
+            //     else if(strstr(data_recei,"AT+QMTPUBEX") && strstr(data_recei,"ERROR")){
+            //         mqtt_sub_success=false;
+            //     }
+            // }
+            if(xQueueReceive(publish_queue_handle,data_recei,pdMS_TO_TICKS(1000))==pdTRUE){
                 ESP_LOGI(MQTT_TAG,"%s",data_recei);
                 if(strstr(data_recei,"data")!=NULL)
                 {
@@ -48,9 +44,9 @@ void sim_mqtt_task(void *pvParameters){
                 }
             }
         }
-        else{
-            mqtt_sim_init();
-        }
-        vTaskDelay(100/portTICK_PERIOD_MS);
+        // else{
+        //     mqtt_sim_init();
+        // }
+        vTaskDelay(pdMS_TO_TICKS(100));
     }   
 }

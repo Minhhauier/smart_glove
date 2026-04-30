@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <config_parameter.h>
+#include "ssd1306.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -150,6 +151,8 @@ esp_err_t mpu6050_read_all(const mpu6050_handle_t *handle,
                            mpu6050_data_t *accel,
                            mpu6050_data_t *gyro,
                            float *temp_c);
+
+extern SSD1306_t dev;
 
 /** @brief  Self-test cơ bản — trả về ESP_OK nếu pass */
 esp_err_t mpu6050_self_test(mpu6050_handle_t *handle);

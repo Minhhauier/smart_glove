@@ -23,6 +23,7 @@
 #include "save_to_nvs.h"
 #include "at_command.h"
 #include "connect_wifi.h"
+#include "ssd1306.h"
 
 
 static const char *TAG = "speaker";
@@ -525,12 +526,15 @@ void speaker_task(void *pvParameters)
     save_text_to_nvs(my_nvs_handle, "activity__text10", "Tôi khó thở quá xin giúp tôi với");
     // Tắt task sau khi phát xong.
     bool spoke[10]= {false};
+    static int dem=0;
     while (1)
     {
         if (data[0].x < -0.7f && -0.5f<data[1].x && data[1].x < 0.5f && -0.5f<data[2].x && data[2].x < 0.5f) {
             if (tts_cache_load_by_key("activity_1") && spoke[0] == false) {
                 printf("Đã phát cache cho key='activity_1'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text1");
+                ssd1306_display_text(&dev, dem%8,"request act_1", strlen("request act_1"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[0] = true;
@@ -540,6 +544,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_2") && spoke[1] == false) {
                 printf("Đã phát cache cho key='activity_2'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text2");
+                ssd1306_display_text(&dev, dem%8,"request act_2", strlen("request act_2"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[1] = true;
@@ -549,6 +555,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_3") && spoke[2] == false) {
                 printf("Đã phát cache cho key='activity_3'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text3");
+                ssd1306_display_text(&dev, dem%8,"request act_3", strlen("request act_3"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[2] = true;
@@ -557,6 +565,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_4") && spoke[3] == false) {
                 printf("Đã phát cache cho key='activity_4'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text4");
+                ssd1306_display_text(&dev, dem%8,"request act_4", strlen("request act_4"), false);
+                dem=dem+2;  
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[3] = true;
@@ -566,6 +576,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_5") && spoke[4] == false) {
                 printf("Đã phát cache cho key='activity_5'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text5");
+                ssd1306_display_text(&dev, dem%8,"request act_5", strlen("request act_5"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[4] = true;
@@ -575,6 +587,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_6") && spoke[5] == false) {
                 printf("Đã phát cache cho key='activity_6'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text6");
+                ssd1306_display_text(&dev, dem%8,"request act_6", strlen("request act_6"), false);    
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[5] = true;
@@ -584,6 +598,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_7") && spoke[6] == false) {
                 printf("Đã phát cache cho key='activity_7'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text7");
+                ssd1306_display_text(&dev, dem%8,"request act_7", strlen("request act_7"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[6] = true;
@@ -593,6 +609,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_8") && spoke[7] == false) {
                 printf("Đã phát cache cho key='activity_8'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text8");
+                ssd1306_display_text(&dev, dem%8,"request act_8", strlen("request act_8"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[7] = true;
@@ -602,6 +620,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_9") && spoke[8] == false) {
                 printf("Đã phát cache cho key='activity_9'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text9");
+                ssd1306_display_text(&dev, dem%8,"request act_9", strlen("request act_9"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[8] = true;
@@ -612,6 +632,8 @@ void speaker_task(void *pvParameters)
             if (tts_cache_load_by_key("activity_10") && spoke[9] == false) {
                 printf("Đã phát cache cho key='activity_10'\n");
                 char *msg = read_text_from_nvs(my_nvs_handle, "activity__text10");
+                ssd1306_display_text(&dev, dem%8,"request act_10", strlen("request act_10"), false);
+                dem=dem+2;
                 publish_emergency(msg);
                 play_mp3_data(mp3_data, mp3_len);
                 spoke[9] = true;

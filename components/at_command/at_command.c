@@ -13,14 +13,14 @@
 #include "system_manage.h"
 // #include "control_relay.h"
 
-#define BUF_SIZE_SIM 2048
+#define BUF_SIZE_SIM 1024
 #define BaUD_RATE 115200
 #define TX_SIM GPIO_NUM_17
 #define RX_SIM GPIO_NUM_39
 
 static char cmd[128];
 static char client[64];
-static char buffer[2048];
+static char buffer[1024];
 
 bool mqtt_sub_success = false;
 
@@ -180,12 +180,12 @@ void request_message(const char *phone_number, const char *message) {
 
 void read_and_send_to_queue_task(void *pvParameters)
 {
-    char *data_receiver=malloc(2048);
-    char data_copy[2048];
+    char *data_receiver=malloc(1024);
+    char data_copy[1024];
    // printf("Start read_and_send_to_queue_task\r\n");
     while (1)
     {
-        int len = uart_read_bytes(UART_NUM_1, data_receiver, 2048, 30 / portTICK_PERIOD_MS);
+        int len = uart_read_bytes(UART_NUM_1, data_receiver, 1024, 30 / portTICK_PERIOD_MS);
         if (len > 0)
         {
             data_receiver[len] = '\0';

@@ -91,11 +91,21 @@ void parse_json(const char* json_str) {
             if(cJSON_IsString(wifi_ssid) && (wifi_ssid->valuestring != NULL) && cJSON_IsString(wifi_password) && (wifi_password->valuestring != NULL)){
                 char *ssid_str = wifi_ssid->valuestring;
                 char *password_str = wifi_password->valuestring;
-                connect_wifi(ssid_str, password_str);
+                if(ssid_str==NULL || password_str==NULL) {
+                    ESP_LOGE("JSON", "SSID or password is NULL");
+                    cJSON_Delete(root);
+                    return;
+                }
+                wifi_connect(ssid_str, password_str);
 
             }
         }
+        else if(cmd_type == 105){
+            wifi_disconnect();
+        }
     }
+
+    cJSON_Delete(root);
 
 }
 

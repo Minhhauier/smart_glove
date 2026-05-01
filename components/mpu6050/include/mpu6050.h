@@ -111,7 +111,7 @@ typedef struct {
 
 /* ─── API ────────────────────────────────────────────────────── */
 extern mpu6050_data_t accel;
-extern mpu6050_data_t data[3];
+extern mpu6050_data_t data_mpu[3];
 /**
  * @brief  Khởi tạo MPU6050 trên I2C master bus
  * @param  bus_handle   I2C master bus handle (đã khởi tạo)

@@ -55,7 +55,7 @@ static esp_err_t init_tca_mpu_handles(i2c_master_bus_handle_t bus_handle)
     return ESP_OK;
 }
 
-mpu6050_data_t data[3];  // Lưu dữ liệu từ 3 MPU6050
+mpu6050_data_t data_mpu[3];  // Lưu dữ liệu từ 3 MPU6050
 // static esp_err_t i2c_master_init(void)
 // {
 //     i2c_config_t conf = {
@@ -181,12 +181,8 @@ void TCA9548A_task(void *arg)
     
     while (1) {
         for (uint8_t ch = 0; ch < 3; ch++) {
-            if (mpu6050_read_data(tca_handle, mpu_handle, ch, &data[ch]) == ESP_OK) {
-                ESP_LOGI(TAG,
-                    "MPU#%d | Accel: X=%.2fg Y=%.2fg Z=%.2fg",
-                    ch,
-                    data[ch].x, data[ch].y, data[ch].z
-                );
+            if (mpu6050_read_data(tca_handle, mpu_handle, ch, &data_mpu[ch]) == ESP_OK) {
+                continue;
             } else {
                 ESP_LOGE(TAG, "MPU#%d: Read failed!", ch);
             }

@@ -42,6 +42,7 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(3000)); 
     uart_sim_init();    
     mqtt_sim_init();
+    wifi_driver_init();
     while (mqtt_sub_success==false)
     {
         vTaskDelay(pdMS_TO_TICKS(1000)); 
@@ -49,7 +50,7 @@ void app_main(void)
     
     xTaskCreate(TCA9548A_task, "TCA9548A_task", 1024*4, NULL, 5, NULL);
     xTaskCreate(speaker_task, "speaker_task", 1024*24, NULL, 5, NULL);
-    xTaskCreate(read_and_send_to_queue_task, "read_and_send_to_queue_task", 1024*4, NULL, 5, NULL);
+    xTaskCreate(read_and_send_to_queue_task, "read_and_send_to_queue_task", 1024*8, NULL, 5, NULL);
     while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));

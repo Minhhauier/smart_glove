@@ -9,7 +9,7 @@
 
 void convert_to_json_update(const char *data) {
     if(data==NULL) return;
-    char dt[2048];
+    char dt[1024];
     strcpy(dt,data);
     char *final_data=NULL;
     char *start;char *end;

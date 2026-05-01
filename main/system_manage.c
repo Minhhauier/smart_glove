@@ -10,7 +10,7 @@
 #include "save_to_nvs.h"   
 #include "system_manage.h"
 
-char data_recei[2048];
+char data_recei[1024];
 static const char *MQTT_TAG = "SYSTEM_MANAGE";
 
 QueueHandle_t publish_queue_handle;

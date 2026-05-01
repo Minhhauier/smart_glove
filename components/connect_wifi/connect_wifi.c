@@ -1,8 +1,14 @@
-#include <esp_wifi.h>
-#include <esp_event.h>
-#include <esp_log.h>
-#include <stdbool.h>
+// connect_wifi.c
+
 #include <string.h>
+#include <stdbool.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
+#include "freertos/semphr.h"          // thêm mutex
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "esp_netif.h"
 
 #include "connect_wifi.h"
 #include "config_parameter.h"
@@ -10,145 +16,230 @@
 
 static const char *TAG = "connect_wifi";
 
-static EventGroupHandle_t wifi_event_group;
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT      BIT1
-static int retry_count = 0;
-static esp_event_handler_instance_t wifi_event_instance = NULL;
-static esp_event_handler_instance_t ip_event_instance = NULL;
+#define WIFI_CONNECTED_BIT  BIT0
+#define WIFI_FAIL_BIT       BIT1
 
 bool got_ip = false;
 
+// ── State nội bộ ─────────────────────────────────────────────────────────────
+static EventGroupHandle_t            s_wifi_event_group = NULL;
+static esp_event_handler_instance_t  s_wifi_inst        = NULL;
+static esp_event_handler_instance_t  s_ip_inst          = NULL;
+static SemaphoreHandle_t             s_wifi_mutex        = NULL;
+static bool                          s_stack_ready       = false;
+static int                           s_retry             = 0;
+static volatile bool                 s_intentional_disc  = false; // 🔑 flag chính
 
+// ── Forward declarations ──────────────────────────────────────────────────────
 void get_wifi_info_and_publish(void);
-static void wifi_event_handler(void *arg, esp_event_base_t event_base,
-                                int32_t event_id, void *event_data)
+static void event_handler(void *arg, esp_event_base_t base,
+                          int32_t id, void *data);
+
+// ── Khởi tạo stack (1 lần) ───────────────────────────────────────────────────
+static esp_err_t stack_init_once(void)
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
-        if (!WIFI_DIAGNOSTIC_NO_CONNECT) {
-            ESP_LOGI(TAG, "Bat dau esp_wifi_connect()...");
-            esp_wifi_connect();
-        } else {
-            ESP_LOGW(TAG, "Diagnostic mode: bo qua esp_wifi_connect() de test reboot tai pha start/init");
-            xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
+    if (s_wifi_event_group == NULL) {
+        s_wifi_event_group = xEventGroupCreate();
+        if (!s_wifi_event_group) return ESP_ERR_NO_MEM;
+    }
+
+    if (s_wifi_mutex == NULL) {
+        s_wifi_mutex = xSemaphoreCreateMutex();
+        if (!s_wifi_mutex) return ESP_ERR_NO_MEM;
+    }
+
+    if (s_stack_ready) return ESP_OK;
+
+    esp_err_t err;
+    err = esp_netif_init();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return err;
+
+    err = esp_event_loop_create_default();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return err;
+
+    if (!esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"))
+        if (!esp_netif_create_default_wifi_sta()) return ESP_FAIL;
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    err = esp_wifi_init(&cfg);
+    if (err != ESP_OK && err != ESP_ERR_WIFI_INIT_STATE) return err;
+
+    if (!s_wifi_inst)
+        ESP_ERROR_CHECK(esp_event_handler_instance_register(
+            WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL, &s_wifi_inst));
+
+    if (!s_ip_inst)
+        ESP_ERROR_CHECK(esp_event_handler_instance_register(
+            IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler, NULL, &s_ip_inst));
+
+    s_stack_ready = true;
+    return ESP_OK;
+}
+
+// ── Event handler ─────────────────────────────────────────────────────────────
+static void event_handler(void *arg, esp_event_base_t base,
+                          int32_t id, void *data)
+{
+    if (base == WIFI_EVENT) {
+        switch (id) {
+            case WIFI_EVENT_STA_START:
+                ESP_LOGI(TAG, "STA_START → connect");
+                esp_wifi_connect();
+                break;
+
+            case WIFI_EVENT_STA_DISCONNECTED:
+                got_ip = false;
+                if (s_intentional_disc) {
+                    ESP_LOGI(TAG, "Disconnect chủ động, bỏ qua retry");
+                    xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+                    break;
+                }
+                if (s_retry < WIFI_MAX_RETRY) {
+                    s_retry++;
+                    ESP_LOGI(TAG, "Retry %d/%d", s_retry, WIFI_MAX_RETRY);
+                    esp_wifi_connect();
+                } else {
+                    ESP_LOGE(TAG, "Hết retry → FAIL");
+                    xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+                }
+                break;
+
+            default: break;
         }
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (retry_count < WIFI_MAX_RETRY) {
-            esp_wifi_connect();
-            retry_count++;
-            ESP_LOGI(TAG, "Thử lại WiFi %d/%d...", retry_count, WIFI_MAX_RETRY);
-        } else {
-            xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
-            got_ip = false;
-        }
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "WiFi CONNECTED OKE! IP: " IPSTR, IP2STR(&event->ip_info.ip));
-        retry_count = 0;
-        got_ip = true;
+    } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t *ev = (ip_event_got_ip_t *)data;
+        ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&ev->ip_info.ip));
+        s_retry           = 0;
+        s_intentional_disc = false;
+        got_ip            = true;
         get_wifi_info_and_publish();
-        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
+        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
+
+// ── Hàm nội bộ: áp config và start/connect ───────────────────────────────────
+static void apply_config_and_start(const char *ssid, const char *pass)
+{
+    wifi_config_t cfg = {0};
+    strncpy((char *)cfg.sta.ssid,     ssid, sizeof(cfg.sta.ssid)     - 1);
+    strncpy((char *)cfg.sta.password, pass, sizeof(cfg.sta.password) - 1);
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &cfg));
+
+    esp_err_t err = esp_wifi_start();
+    if (err == ESP_ERR_WIFI_CONN) {
+        // Đã started → chỉ reconnect
+        ESP_LOGI(TAG, "Wi-Fi đã started → esp_wifi_connect()");
+        ESP_ERROR_CHECK(esp_wifi_connect());
+    } else {
+        ESP_ERROR_CHECK(err);
+        // STA_START event sẽ tự gọi connect
+    }
+}
+
+// ── API công khai ─────────────────────────────────────────────────────────────
 
 void wifi_init(void)
 {
-    wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(wifi_event_group ? ESP_OK : ESP_ERR_NO_MEM);
+    ESP_ERROR_CHECK(stack_init_once());
 
+    xSemaphoreTake(s_wifi_mutex, portMAX_DELAY);
+    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
+    s_intentional_disc = false;
+    s_retry            = 0;
+    apply_config_and_start(WIFI_SSID, WIFI_PASS);
+    xSemaphoreGive(s_wifi_mutex);
 
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                                         &wifi_event_handler, NULL, &wifi_event_instance));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
-                                                         &wifi_event_handler, NULL, &ip_event_instance));
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid     = WIFI_SSID,
-            .password = WIFI_PASS,
-        },
-    };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    if (WIFI_DIAGNOSTIC_SKIP_START) {
-        xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
-    } else {
-        ESP_ERROR_CHECK(esp_wifi_start());
-        ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(WIFI_MAX_TX_POWER_QUARTER_DBM));
-        ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_POWER_SAVE_MODE));
-        ESP_LOGI(TAG, "WiFi power save=%d, max tx power=%d quarter-dBm",
-                 WIFI_POWER_SAVE_MODE, WIFI_MAX_TX_POWER_QUARTER_DBM);
-    }
-
-    EventBits_t bits = xEventGroupWaitBits(wifi_event_group,
-                                            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                            pdFALSE, pdFALSE, portMAX_DELAY);
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Kết nối WiFi thành công!");
-    } else {
-        ESP_LOGE(TAG, "Kết nối WiFi thất bại!");
-        got_ip = false;
-    }      
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                                           pdFALSE, pdFALSE, portMAX_DELAY);
+    if (bits & WIFI_CONNECTED_BIT)
+        ESP_LOGI(TAG, "wifi_init: OK");
+    else
+        ESP_LOGE(TAG, "wifi_init: FAIL");
 }
 
-void connect_wifi(const char *ssid_wf,const char *password_wf) {
+void wifi_connect(const char *ssid, const char *password)
+{
+    if (!ssid || !password) { ESP_LOGE(TAG, "NULL arg"); return; }
+    ESP_LOGI(TAG, "wifi_connect → '%s'", ssid);
 
-    esp_netif_init();
-    esp_event_loop_create_default();
-    esp_netif_create_default_wifi_sta();
+    ESP_ERROR_CHECK(stack_init_once());
 
+    xSemaphoreTake(s_wifi_mutex, portMAX_DELAY);
 
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    esp_wifi_init(&cfg);
-    esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL);
-    esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL);
-    wifi_config_t wifi_config = {0};
+    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
+    s_intentional_disc = false;   // cho phép retry khi kết nối mới
+    s_retry            = 0;
+    got_ip             = false;
 
-    strncpy((char *)wifi_config.sta.ssid, (const char *)ssid_wf, sizeof(wifi_config.sta.ssid) - 1);
-    strncpy((char *)wifi_config.sta.password, (const char *)password_wf, sizeof(wifi_config.sta.password) - 1);
-    // wifi_config_t wifi_config = {
-    //     .sta = {
-    //         .ssid = ssid_wf,
-    //         .password = password_wf,
-    //     },
-    // };
+    // Ngắt kết nối cũ — đánh dấu intentional để event handler không retry
+    s_intentional_disc = true;
+    esp_wifi_disconnect();
+    // Delay ngắn để event handler xử lý STA_DISCONNECTED xong
+    vTaskDelay(pdMS_TO_TICKS(300));
 
-    esp_wifi_set_mode(WIFI_MODE_STA);
-    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    // Bây giờ mới cho phép retry trở lại cho lần connect mới
+    s_intentional_disc = false;
 
-    // 5. Bắt đầu kết nối
-    esp_wifi_start();
-    esp_wifi_connect(); // Thêm lệnh này để ép module bắt đầu kết nối ngay
+    apply_config_and_start(ssid, password);
 
-    ESP_LOGI("WIFI", "Đang kết nối...");
+    xSemaphoreGive(s_wifi_mutex);
+
+    ESP_LOGI(TAG, "Đã gửi lệnh connect, chờ kết quả qua event...");
 }
 
+void wifi_disconnect(void)
+{
+    ESP_LOGI(TAG, "wifi_disconnect: reset hoàn toàn");
 
-void get_wifi_info_and_publish(void) {
-    wifi_ap_record_t ap_info;
-    esp_netif_ip_info_t ip_info;
-    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    // Đảm bảo mutex đã được tạo trước khi dùng
+    ESP_ERROR_CHECK(stack_init_once());
 
-    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
-        ESP_LOGI(TAG, "SSID: %s", ap_info.ssid);
-    } else {
-        ESP_LOGE(TAG, "Không lấy được SSID (Có thể chưa kết nối)");
+    xSemaphoreTake(s_wifi_mutex, portMAX_DELAY);
+
+    s_intentional_disc = true;
+    got_ip             = false;
+    s_retry            = 0;
+    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
+
+    esp_err_t err = esp_wifi_disconnect();
+    if (err != ESP_OK && err != ESP_ERR_WIFI_NOT_CONNECT)
+        ESP_LOGW(TAG, "esp_wifi_disconnect: %s", esp_err_to_name(err));
+
+    err = esp_wifi_stop();
+    if (err != ESP_OK)
+        ESP_LOGW(TAG, "esp_wifi_stop: %s", esp_err_to_name(err));
+
+    wifi_config_t empty_cfg = {0};
+    esp_wifi_set_config(WIFI_IF_STA, &empty_cfg);
+
+    xSemaphoreGive(s_wifi_mutex);
+
+    ESP_LOGI(TAG, "Wi-Fi đã reset hoàn toàn.");
+}
+
+void wifi_driver_init(void)
+{
+    ESP_ERROR_CHECK(stack_init_once());
+}
+
+// ── Publish info sau khi có IP ────────────────────────────────────────────────
+void get_wifi_info_and_publish(void)
+{
+    wifi_ap_record_t    ap  = {0};
+    esp_netif_ip_info_t ip  = {0};
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+
+    if (esp_wifi_sta_get_ap_info(&ap) != ESP_OK) {
+        ESP_LOGE(TAG, "Không lấy được AP info"); return;
     }
-
     if (netif) {
-        esp_netif_get_ip_info(netif, &ip_info);
+        esp_netif_get_ip_info(netif, &ip);
         char ip_str[16];
-        esp_ip4addr_ntoa(&ip_info.ip, ip_str, sizeof(ip_str));
-        
-        ESP_LOGI(TAG, "IP Address: %s", ip_str);
-        publish_response_connect_wifi((char *)ap_info.ssid, ip_str, got_ip ? 1 : 0);
+        esp_ip4addr_ntoa(&ip.ip, ip_str, sizeof(ip_str));
+        ESP_LOGI(TAG, "SSID: %s  IP: %s", ap.ssid, ip_str);
+        publish_response_connect_wifi((char *)ap.ssid, ip_str, got_ip ? 1 : 0);
     }
-    
 }
